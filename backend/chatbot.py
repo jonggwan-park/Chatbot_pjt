@@ -1,51 +1,49 @@
 import streamlit as st
-from openai import OpenAI
+from st_chat_message import message
+from backend.config import (get_openai_client, 
+                            DEFAULT_MODEL, 
+                            SYSTEM_MESSAGE,
+                            BOT_AVATAR, USER_AVATAR)
 
-st.title("ChatGPT-like clone") # 제목 출력. 
+# OpenAI API 클라이언트 초기화
+def initialize_session():
+    """세션 상태를 초기화"""
+    if "openai_model" not in st.session_state:
+        st.session_state["openai_model"] = DEFAULT_MODEL
 
-# Set OpenAI API key from Streamlit secrets
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"]) #api 키 제공
-
-# Set a default model 기본 모델 설정
-if "openai_model" not in st.session_state: #session_state에 openai_model값이 없으면
-    st.session_state["openai_model"] = "gpt-3.5-turbo" #모델 지정
-
-sys_message = '''
-너는 it기업 면접관임
-개발자 채용시 기술 면접을 진행하는 중임. 
-한번에 하나의 질문을 제시하고, 해당 질문에 답변이 들어오면 해당 답변에 대해 피드백을 진행 한 후 다음 질문을 시작해. 
-        
-'''
-
-# Initialize chat history
-if "messages" not in st.session_state: #session_state에 message가 없으면
-    st.session_state.messages = [] #초기화
-    st.session_state.messages = [{"role": "system", "content": sys_message}]
+    if "messages" not in st.session_state:
+        st.session_state.messages = [{"role": "system", "content": SYSTEM_MESSAGE}]
 
 
-# Display chat messages from history on app rerun
-for message in st.session_state.messages: #message가 있으면 
-    if message["role"] == "system":  # 시스템 메시지는 출력하지 않음
-        continue  
-    with st.chat_message(message["role"]):# role 에 따라 출력. 
-        st.markdown(message["content"])
+def display_chat_history():
+    """채팅 기록을 화면에 출력하는 함수"""
+    for i, msg in enumerate(st.session_state.messages):
+        if msg["role"] == "system":  # 시스템 메시지는 출력하지 않음
+            continue
+        is_user = msg["role"] == "user"
+        message(msg["content"], is_user=is_user, key=f"msg_{i}")
 
-# Accept user input
-if prompt := st.chat_input("What is up?"): #프롬프트에 st.chat_input에서 입력한 값 대입
-    # Add user message to chat history
-    st.session_state.messages.append({"role": "user", "content": prompt}) #message탭에 user /content에 추가. 
-    # Display user message in chat message container
-    with st.chat_message("user"): #user 출력. 
-        st.markdown(prompt)
-# Display assistant response in chat message container
-    with st.chat_message("assistant"):
-        stream = client.chat.completions.create(
-            model=st.session_state["openai_model"],#openai_model로 
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
-        )
-        response = st.write_stream(stream) #출력 생성. 
-    st.session_state.messages.append({"role": "assistant", "content": response})
+
+def get_openai_response(messages):
+    """OpenAI API를 호출하여 응답을 가져옴"""
+    response = get_openai_client().chat.completions.create(
+        model=st.session_state["openai_model"],
+        messages=messages,
+        stream=False,
+    )
+    return response.choices[0].message.content
+
+
+def handle_user_input():
+    """사용자의 입력을 처리하고 OpenAI API 응답을 가져옴"""
+    if prompt := st.chat_input("질문을 입력하세요..."):
+        # 사용자 입력을 대화 기록에 추가
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        message(prompt, is_user=True, key=f"user_{len(st.session_state.messages)}", logo=f'{USER_AVATAR}')
+
+        # OpenAI API 응답 가져오기
+        response = get_openai_response(st.session_state.messages)
+
+        # OpenAI 응답을 대화 기록에 추가
+        st.session_state.messages.append({"role": "assistant", "content": response})
+        message(response, is_user=False, key=f"assistant_{len(st.session_state.messages)}", logo=f'{BOT_AVATAR}')
