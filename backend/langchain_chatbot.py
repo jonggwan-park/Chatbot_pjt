@@ -21,7 +21,7 @@ template = """
 3. 역사적 장소
 4. 특산품
 
-#Answer:
+Answer:
 """
 prompt = PromptTemplate(
     template=template,    
