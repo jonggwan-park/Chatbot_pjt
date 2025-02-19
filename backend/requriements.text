@@ -122,9 +122,9 @@ parso==0.8.4
 pathspec==0.12.1
 pdf2image==1.17.0
 pillow==11.1.0
-pinecone-client==5.0.1
-pinecone-plugin-inference==1.1.0
-pinecone-plugin-interface==0.0.7
+pinecone-client
+pinecone-plugin-inference
+pinecone-plugin-interface
 pinecone-text==0.9.0
 platformdirs==4.3.6
 pluggy==1.5.0
@@ -197,7 +197,7 @@ typing-inspect==0.9.0
 typing_extensions==4.12.2
 tzdata==2025.1
 urllib3==2.3.0
-uvicorn==0.34.0
+uvicorn
 watchdog==6.0.0
 watchfiles==1.0.4
 wcwidth==0.2.13
