@@ -1,71 +1,132 @@
 import psycopg2
-import streamlit as st
 from psycopg2.extras import RealDictCursor
+from psycopg2 import pool
+import streamlit as st
+from backend.config import DB_CONFIG  # `config.py`에서 DB 설정 가져오기
 
-# Streamlit secrets.toml에서 DB 정보 가져오기
-db_config = st.secrets["postgres"]
-
-# PostgreSQL 연결 함수
-def get_connection():
-    return psycopg2.connect(
-        dbname=db_config["POSTGRES_DB"],
-        user=db_config["POSTGRES_USER"],
-        password=db_config["POSTGRES_PASSWORD"],
-        host=db_config["POSTGRES_HOST"],
-        port=db_config["POSTGRES_PORT"],
-        sslmode=db_config["SSL_MODE"],
-        cursor_factory=RealDictCursor
+# Connection Pool 생성 (최소 1개, 최대 5개)
+try:
+    connection_pool = pool.SimpleConnectionPool(
+        minconn=1,
+        maxconn=5,
+        dbname=DB_CONFIG["database"],
+        user=DB_CONFIG["user"],
+        password=DB_CONFIG["password"],
+        host=DB_CONFIG["host"],
+        port=DB_CONFIG["port"],
+        sslmode=st.secrets["postgres"].get("SSL_MODE", "require")  # 기본값 'require'
     )
+    if connection_pool:
+        print("Database connection pool created successfully.")
+except Exception as e:
+    print(f"Database connection pool creation failed: {e}")
 
-# 면접 기록 테이블 생성
-def create_tables():
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS interview_records (
-                    id SERIAL PRIMARY KEY,
-                    user_id VARCHAR(255),
-                    question TEXT,
-                    answer TEXT,
-                    feedback TEXT,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-            """)
-            conn.commit()
+# PostgreSQL 연결 함수 (연결 풀에서 가져오기)
+def get_connection():
+    try:
+        return connection_pool.getconn()
+    except Exception as e:
+        print(f"Error getting connection from pool: {e}")
+        return None
 
-# 면접 기록 삽입
-def insert_interview_record(user_id, question, answer, feedback):
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO interview_records (user_id, question, answer, feedback)
-                VALUES (%s, %s, %s, %s) RETURNING id;
-            """, (user_id, question, answer, feedback))
-            conn.commit()
+# 연결 반환 함수
+def release_connection(conn):
+    if conn:
+        connection_pool.putconn(conn)
 
-# 사용자별 면접 기록 조회
-def get_interview_records(user_id):
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT * FROM interview_records WHERE user_id = %s ORDER BY timestamp DESC;", (user_id,))
-            return cur.fetchall()
-        
-# 사용자별 면접 기록 조회 (필터링 지원)
-def get_filtered_interview_records(user_id, role=None, start_date=None, end_date=None):
-    query = "SELECT * FROM interview_records WHERE user_id = %s"
-    params = [user_id]
+# 새로운 채팅 세션 생성
+def create_chat_session(user_id):
+    """새로운 채팅 세션을 생성하고, 세션 ID를 반환"""
+    conn = get_connection()
+    session_id = None
+    if conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute("INSERT INTO chat_sessions (user_id) VALUES (%s) RETURNING id;", (user_id,))
+                session_id = cur.fetchone()[0]
+                conn.commit()
+        except Exception as e:
+            print(f"Error creating chat session: {e}")
+        finally:
+            release_connection(conn)
+    return session_id
 
-    if role:
-        query += " AND question LIKE %s"
-        params.append(f"%{role}%")
-    
-    if start_date and end_date:
-        query += " AND timestamp BETWEEN %s AND %s"
-        params.extend([start_date, end_date])
+# 챗봇과의 대화 메시지 삽입
+def insert_chat_message(session_id, sender, message):
+    """사용자 또는 챗봇이 보낸 메시지를 저장"""
+    conn = get_connection()
+    if conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO chat_messages (session_id, sender, message) 
+                    VALUES (%s, %s, %s);
+                """, (session_id, sender, message))
+                conn.commit()
+        except Exception as e:
+            print(f"Error inserting chat message: {e}")
+        finally:
+            release_connection(conn)
 
-    query += " ORDER BY timestamp DESC"
+# 특정 세션의 대화 내역 가져오기
+def get_chat_history(session_id):
+    """특정 채팅 세션의 대화 내역을 시간순으로 조회"""
+    conn = get_connection()
+    chat_history = []
+    if conn:
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT sender, message, timestamp 
+                    FROM chat_messages 
+                    WHERE session_id = %s 
+                    ORDER BY timestamp ASC;
+                """, (session_id,))
+                chat_history = cur.fetchall()
+        except Exception as e:
+            print(f"Error fetching chat history: {e}")
+        finally:
+            release_connection(conn)
+    return chat_history
 
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(query, tuple(params))
-            return cur.fetchall()
+# 사용자별 전체 채팅 세션 목록 가져오기
+def get_user_chat_sessions(user_id):
+    """사용자가 가진 모든 채팅 세션을 최신순으로 조회"""
+    conn = get_connection()
+    sessions = []
+    if conn:
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT id, created_at 
+                    FROM chat_sessions 
+                    WHERE user_id = %s 
+                    ORDER BY created_at DESC;
+                """, (user_id,))
+                sessions = cur.fetchall()
+        except Exception as e:
+            print(f"Error fetching chat sessions: {e}")
+        finally:
+            release_connection(conn)
+    return sessions
+
+# 전체 사용자 대화 기록 조회
+def get_all_chat_sessions():
+    """모든 사용자 채팅 세션 목록을 최신순으로 조회"""
+    conn = get_connection()
+    sessions = []
+    if conn:
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT cs.id, u.username, cs.created_at 
+                    FROM chat_sessions cs
+                    JOIN users u ON cs.user_id = u.id
+                    ORDER BY cs.created_at DESC;
+                """)
+                sessions = cur.fetchall()
+        except Exception as e:
+            print(f"Error fetching all chat sessions: {e}")
+        finally:
+            release_connection(conn)
+    return sessions
