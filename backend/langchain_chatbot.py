@@ -1,10 +1,31 @@
 import uuid
-from langchain_openai import ChatOpenAI
-from IPython.display import Image, display
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
 from langchain_core.prompts import PromptTemplate
+from langchain_chroma import Chroma
+
+#RAG를 위한 vector store와 연결. 
+# Embedding 임베딩 선언
+embeddings = OpenAIEmbeddings()
+
+#호출할 vector sotre 및 사용할 embeddings 설정. 
+vector_store = Chroma(
+    persist_directory="my_vector_store",
+    embedding_function=embeddings,
+)
+# retriever #검색할 위치 선언. 
+retriever = vector_store.as_retriever()
+
+question = "파이썬에 대한 면접 질문 하나 선택해"
+# retrieved docs
+retrieved_docs = retriever.invoke(question)
+
+# context #참조 자료 생성. 
+context = "\n".join([doc.page_content for doc in retrieved_docs])
+### RAG 시스템 영역 종료. 
+
 
 # Define a new graph
 workflow = StateGraph(state_schema=MessagesState)
@@ -28,15 +49,18 @@ prompt = PromptTemplate(
     input_variables=["subject"]
 )
 
-# Define a chat model
+
+
+
+# 모델 정의 및 chain 연결. 
 model = ChatOpenAI()
 chain = prompt | model
+
 # Define the function that calls the model
 def call_model(state: MessagesState):
     response = model.invoke(state["messages"])
     # We return a list, because this will get added to the existing list
     return {"messages": response}
-
 
 # Define the two nodes we will cycle between
 workflow.add_edge(START, "chain") #시작에 model을 연결. 
