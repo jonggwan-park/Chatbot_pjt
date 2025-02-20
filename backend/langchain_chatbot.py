@@ -6,83 +6,69 @@ from langgraph.graph import START, MessagesState, StateGraph
 from langchain_core.prompts import PromptTemplate
 from langchain_chroma import Chroma
 
-#RAG를 위한 vector store와 연결. 
-# Embedding 임베딩 선언
-embeddings = OpenAIEmbeddings()
+# OpenAI 모델 초기화
+model = ChatOpenAI()
 
-#호출할 vector sotre 및 사용할 embeddings 설정. 
+# RAG를 위한 vector store 연결 및 Embedding 설정
+embeddings = OpenAIEmbeddings()
 vector_store = Chroma(
-    persist_directory="my_vector_store",
-    embedding_function=embeddings,
-)
-# retriever #검색할 위치 선언. 
+    persist_directory="my_vector_store", 
+    embedding_function=embeddings
+    )
 retriever = vector_store.as_retriever()
 
-question = "파이썬에 대한 면접 질문 하나 선택해"
-# retrieved docs
-retrieved_docs = retriever.invoke(question)
+# 면접 질문 생성
+question_prompt = PromptTemplate(
+    template="파이썬 면접 질문 하나 생성해.",
+    input_variables=[]
+)
+question_chain = question_prompt | model
 
-# context #참조 자료 생성. 
+# 검색된 문서 가져오기
+retrieved_docs = retriever.invoke(generated_question)
 context = "\n".join([doc.page_content for doc in retrieved_docs])
-### RAG 시스템 영역 종료. 
 
+# 면접 챗봇 프롬프트 정의
+evaluation_prompt = PromptTemplate(
+    template="""
+    너는 파이썬 면접관 챗봇이야. 
+    지원자가 답변을 입력하면 평가하고, 모범답안을 제시해 줘
+    
+    질문: {question}
+    답변: {answer}
+    평가:
+    """,
+    input_variables=["question", "answer"]
+)
 
-# Define a new graph
+evaluation_chain = evaluation_prompt | model
+
+# 그래프 정의
 workflow = StateGraph(state_schema=MessagesState)
 
-template = """
-{subject}의 수도에 대해서 알려주세요.
-도시의 특징을 다음의 양식에 맞게 불렛 포인트 형식으로 정리해 주세요.
-300자 내외로 작성해 주세요.
-한글로 작성해 주세요.
-----
-[양식]
-1. 면적
-2. 인구
-3. 역사적 장소
-4. 특산품
-
-Answer:
-"""
-prompt = PromptTemplate(
-    template=template,    
-    input_variables=["subject"]
-)
-
-
-
-
-# 모델 정의 및 chain 연결. 
-model = ChatOpenAI()
-chain = prompt | model
-
-# Define the function that calls the model
 def call_model(state: MessagesState):
-    response = model.invoke(state["messages"])
-    # We return a list, because this will get added to the existing list
-    return {"messages": response}
+    response = evaluation_chain.invoke({
+        "question": generated_question,
+        "answer": state["messages"][-1].content
+    })
+    return {"messages": [response]}
 
-# Define the two nodes we will cycle between
-workflow.add_edge(START, "chain") #시작에 model을 연결. 
+workflow.add_edge(START, "chain")
 workflow.add_node("chain", call_model)
 
-# Adding memory is straight forward in langgraph!
 memory = MemorySaver()
+app = workflow.compile(checkpointer=memory)
 
-app = workflow.compile(
-    checkpointer=memory
-)
+# 질문 생성
+generated_question = question_chain.invoke({}).content
+print(f"Generated Question: {generated_question}")  # 생성된 질문 출력
 
-
-# The thread id is a unique key that identifies
-# this particular conversation.
-# We'll just generate a random uuid here.
-# This enables a single application to manage conversations among multiple users.
+# 대화 세션 관리
 thread_id = uuid.uuid4()
 config = {"configurable": {"thread_id": thread_id}}
 
-#입력 처리 기능.
-contents = input()
+# 사용자 입력 처리
+contents = input("답변 입력: ")
 input_message = HumanMessage(content=contents)
 for event in app.stream({"messages": [input_message]}, config, stream_mode="values"):
     event["messages"][-1].pretty_print()
