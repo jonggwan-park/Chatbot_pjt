@@ -1,17 +1,23 @@
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
-from langchain_community.document_loaders import CSVLoader
+from langchain_community.document_loaders import CSVLoader, Docx2txtLoader
 from langchain_openai import OpenAIEmbeddings
+from dotenv import load_dotenv
 
-# Data Load 데이터 호출 #추가로 필요한 데이터 로더 고려. 
-loader = CSVLoader(file_path="data/shopping.csv")
+load_dotenv()
+
+
+# Data Load 데이터 호출
+loader = Docx2txtLoader(file_path="data/referance.docx")
 whole_data = loader.load()
+# print(whole_data)
 
 # Split 데이터 분할.
 splitter = RecursiveCharacterTextSplitter(chunk_size=300, chunk_overlap=50)
 split_data = splitter.split_documents(whole_data)
+print(split_data[0])
 
-# Embedding 임베딩 선언
+# Embedding 임베딩
 embeddings = OpenAIEmbeddings()
 
 # Vector Store 데이터 저장. 
