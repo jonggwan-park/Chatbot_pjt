@@ -6,83 +6,106 @@ from langgraph.graph import START, MessagesState, StateGraph
 from langchain_core.prompts import PromptTemplate
 from langchain_chroma import Chroma
 
-#RAG를 위한 vector store와 연결. 
-# Embedding 임베딩 선언
-embeddings = OpenAIEmbeddings()
+# OpenAI 모델 초기화
+model = ChatOpenAI()
 
-#호출할 vector sotre 및 사용할 embeddings 설정. 
+# RAG를 위한 vector store 연결 및 Embedding 설정
+embeddings = OpenAIEmbeddings()
 vector_store = Chroma(
-    persist_directory="my_vector_store",
-    embedding_function=embeddings,
-)
-# retriever #검색할 위치 선언. 
+    persist_directory="my_vector_store", 
+    embedding_function=embeddings
+    )
 retriever = vector_store.as_retriever()
 
-question = "파이썬에 대한 면접 질문 하나 선택해"
-# retrieved docs
-retrieved_docs = retriever.invoke(question)
+# # 토픽 선택용 코드 추후 필요시 사용. 
+# # 면접 질문 생성
+# question_prompt = PromptTemplate(
+#     template="""주어진 문서를 기반으로 {topic} 면접 질문을 생성해 주세요. 
+#     문서 내용: {context}
+#     면접 질문:""",
+#     input_variables=["context", "topic"]  # "context"와 "topic"을 입력 변수로 추가
+# )
 
-# context #참조 자료 생성. 
+# # 사용자가 원하는 주제 입력
+# topic = input("면접 질문을 생성할 주제를 입력하세요 (예: 파이썬): ")
+
+# # RAG를 이용하여 관련 문서 검색
+# retrieved_docs = retriever.invoke(topic)  # 사용자가 입력한 주제를 검색 쿼리로 사용
+# context = "\n".join([doc.page_content for doc in retrieved_docs])  # 검색된 문서에서 내용 가져오기
+
+# # RAG와 함께 질문 생성
+# question_chain = question_prompt | model
+# generated_question = question_chain.invoke({"context": context, "topic": topic}).content
+
+# print(f"Generated Question: {generated_question}")  # 생성된 질문 출력
+
+
+# 면접 질문 생성
+question_prompt = PromptTemplate(
+    template="""주어진 문서를 기반으로 파이썬 면접 질문을 하나만 생성해 주세요. 
+    문서 내용: {context}
+    면접 질문:""",
+    input_variables=["context"]  # "context"를 입력 변수로 추가
+)
+
+# RAG를 이용하여 관련 문서 검색
+retrieved_docs = retriever.invoke("파이썬 면접 질문 하나 생성해")  # 임시로 사용한 검색 쿼리
+context = "\n".join([doc.page_content for doc in retrieved_docs])  # 검색된 문서에서 내용 가져오기
+
+# RAG와 함께 질문 생성
+question_chain = question_prompt | model
+generated_question = question_chain.invoke({"context": context}).content
+
+
+# 검색된 문서 가져오기
+retrieved_docs = retriever.invoke(generated_question)
 context = "\n".join([doc.page_content for doc in retrieved_docs])
-### RAG 시스템 영역 종료. 
 
+# 면접 챗봇 프롬프트 정의
+evaluation_prompt = PromptTemplate(
+    template="""
+    너는 파이썬 면접관 챗봇이야. 
+    지원자가 답변을 입력하면 아래의 문서를 참조해서 평가 및 모범답안을 제시를 수행해줘
+    
+    참고 문서:  
+    {context}
+    
+    질문: {question}
+    답변: {answer}
+    평가:
+    
+    """,
+    input_variables=["question", "answer"]
+)
 
-# Define a new graph
+evaluation_chain = evaluation_prompt | model
+
+# 그래프 정의
 workflow = StateGraph(state_schema=MessagesState)
 
-template = """
-{subject}의 수도에 대해서 알려주세요.
-도시의 특징을 다음의 양식에 맞게 불렛 포인트 형식으로 정리해 주세요.
-300자 내외로 작성해 주세요.
-한글로 작성해 주세요.
-----
-[양식]
-1. 면적
-2. 인구
-3. 역사적 장소
-4. 특산품
-
-Answer:
-"""
-prompt = PromptTemplate(
-    template=template,    
-    input_variables=["subject"]
-)
-
-
-
-
-# 모델 정의 및 chain 연결. 
-model = ChatOpenAI()
-chain = prompt | model
-
-# Define the function that calls the model
 def call_model(state: MessagesState):
-    response = model.invoke(state["messages"])
-    # We return a list, because this will get added to the existing list
-    return {"messages": response}
+    response = evaluation_chain.invoke({
+        "question": generated_question,
+        "answer": state["messages"][-1].content,
+        "context": context
+    })
+    return {"messages": [response]}
 
-# Define the two nodes we will cycle between
-workflow.add_edge(START, "chain") #시작에 model을 연결. 
+workflow.add_edge(START, "chain")
 workflow.add_node("chain", call_model)
 
-# Adding memory is straight forward in langgraph!
 memory = MemorySaver()
-
-app = workflow.compile(
-    checkpointer=memory
-)
+app = workflow.compile(checkpointer=memory)
 
 
-# The thread id is a unique key that identifies
-# this particular conversation.
-# We'll just generate a random uuid here.
-# This enables a single application to manage conversations among multiple users.
+print(f"Generated Question: {generated_question}")  # 생성된 질문 출력
+
+# 대화 세션 관리
 thread_id = uuid.uuid4()
 config = {"configurable": {"thread_id": thread_id}}
 
-#입력 처리 기능.
-contents = input()
+# 사용자 입력 처리
+contents = input("답변 입력: ")
 input_message = HumanMessage(content=contents)
 for event in app.stream({"messages": [input_message]}, config, stream_mode="values"):
     event["messages"][-1].pretty_print()
