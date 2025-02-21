@@ -130,3 +130,60 @@ def get_all_chat_sessions():
         finally:
             release_connection(conn)
     return sessions
+
+# 특정 채팅 세션의 대화 메시지 삭제
+def delete_chat_messages(session_id):
+    """특정 채팅 세션의 모든 메시지를 삭제"""
+    conn = get_connection()
+    if conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM chat_messages WHERE session_id = %s;", (session_id,))
+                conn.commit()
+                print(f"Chat messages for session {session_id} deleted successfully.")
+        except Exception as e:
+            print(f"Error deleting chat messages: {e}")
+        finally:
+            release_connection(conn)
+
+# 특정 채팅 세션과 모든 대화 내역 삭제
+def delete_chat_session(session_id):
+    """특정 채팅 세션의 메시지와 세션 정보를 삭제"""
+    conn = get_connection()
+    if conn:
+        try:
+            with conn.cursor() as cur:
+                # 1. 먼저 해당 세션의 메시지 삭제
+                cur.execute("DELETE FROM chat_messages WHERE session_id = %s;", (session_id,))
+                # 2. 채팅 세션 삭제
+                cur.execute("DELETE FROM chat_sessions WHERE id = %s;", (session_id,))
+                conn.commit()
+                print(f"Chat session {session_id} and its messages deleted successfully.")
+        except Exception as e:
+            print(f"Error deleting chat session: {e}")
+        finally:
+            release_connection(conn)
+
+# 특정 사용자의 모든 채팅 세션 및 대화 삭제
+def delete_all_user_sessions(user_id):
+    """특정 사용자의 모든 채팅 세션과 연관된 메시지를 삭제"""
+    conn = get_connection()
+    if conn:
+        try:
+            with conn.cursor() as cur:
+                # 1. 사용자의 모든 세션 ID 조회
+                cur.execute("SELECT id FROM chat_sessions WHERE user_id = %s;", (user_id,))
+                sessions = cur.fetchall()
+                
+                # 2. 각 세션의 메시지 삭제
+                for session in sessions:
+                    cur.execute("DELETE FROM chat_messages WHERE session_id = %s;", (session[0],))
+                
+                # 3. 사용자의 모든 세션 삭제
+                cur.execute("DELETE FROM chat_sessions WHERE user_id = %s;", (user_id,))
+                conn.commit()
+                print(f"All chat sessions and messages for user {user_id} deleted successfully.")
+        except Exception as e:
+            print(f"Error deleting all user chat sessions: {e}")
+        finally:
+            release_connection(conn)
