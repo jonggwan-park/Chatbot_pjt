@@ -6,12 +6,12 @@ from langgraph.graph import START, MessagesState, StateGraph
 from langchain_core.prompts import PromptTemplate
 from langchain_chroma import Chroma
 import streamlit as st
-from backend.config import (get_api_key, 
+from backend.config import (get_openai_key, 
                             DEFAULT_MODEL, 
                             BOT_AVATAR, USER_AVATAR)
 
 #streamlit api 키 호출
-key = get_api_key()
+key = get_openai_key()
 
 # OpenAI 모델 초기화
 model = ChatOpenAI(model=DEFAULT_MODEL, temperature=0.7, api_key= key)
@@ -24,8 +24,30 @@ vector_store = Chroma(
     )
 retriever = vector_store.as_retriever()
 
-# 프롬프트 
-# 면접 질문 프롬프트 정의 
+# # 토픽 선택용 코드 추후 필요시 사용. 
+# # 면접 질문 생성
+# question_prompt = PromptTemplate(
+#     template="""주어진 문서를 기반으로 {topic} 면접 질문을 생성해 주세요. 
+#     문서 내용: {context}
+#     면접 질문:""",
+#     input_variables=["context", "topic"]  # "context"와 "topic"을 입력 변수로 추가
+# )
+
+# # 사용자가 원하는 주제 입력
+# topic = input("면접 질문을 생성할 주제를 입력하세요 (예: 파이썬): ")
+
+# # RAG를 이용하여 관련 문서 검색
+# retrieved_docs = retriever.invoke(topic)  # 사용자가 입력한 주제를 검색 쿼리로 사용
+# context = "\n".join([doc.page_content for doc in retrieved_docs])  # 검색된 문서에서 내용 가져오기
+
+# # RAG와 함께 질문 생성
+# question_chain = question_prompt | model
+# generated_question = question_chain.invoke({"context": context, "topic": topic}).content
+
+# print(f"Generated Question: {generated_question}")  # 생성된 질문 출력
+
+
+# 면접 질문 생성
 question_prompt = PromptTemplate(
     template="""주어진 문서를 기반으로 파이썬 면접 질문을 하나만 생성해 주세요. 
     문서 내용: {context}
