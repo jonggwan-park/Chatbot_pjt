@@ -1,5 +1,6 @@
 import streamlit as st
-from backend.accounts import authenticate, register_user, login_user, logout
+from backend.accounts import authenticate, register_user, login_user
+from backend.utils import show_sidebar
 
 
 # 세션 상태 초기화
@@ -21,6 +22,8 @@ if not st.session_state["authenticated"]:
 
         if st.button("로그인"):
             if authenticate(input_username, input_password):
+                st.session_state["authenticated"] = True  # 로그인 상태 유지 
+                st.session_state["username"] = input
                 login_user(input_username)  # 세션 상태 업데이트
                 st.success(f"🎉 환영합니다, {input_username}님!")
                 st.rerun()  # 화면 새로고침하여 UI 반영
@@ -38,5 +41,6 @@ if not st.session_state["authenticated"]:
                 st.error("❌ 이미 존재하는 아이디입니다.")
 
 else:
-    st.sidebar.button("로그아웃", on_click=logout)
-    st.write(f"✅ 로그인 상태: {st.session_state['user']}님")
+    st.write(f"✅ 로그인 상태: {st.session_state['user']}님, 반갑습니다!")
+
+show_sidebar()

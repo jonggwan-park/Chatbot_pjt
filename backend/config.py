@@ -1,5 +1,8 @@
 import streamlit as st
 from openai import OpenAI
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_chroma import Chroma
+from langchain_core.prompts import PromptTemplate
 
 # Neon PostgreSQL 연결 정보
 DB_CONFIG = {
@@ -10,24 +13,47 @@ DB_CONFIG = {
     "port": st.secrets['postgres']['POSTGRES_PORT']
 }
 
-def get_openai_key():
-    return st.secrets['openai']["OPENAI_API_KEY"]
+
+# openai 기본 모델 설정
+DEFAULT_MODEL = "gpt-4o-mini"
 
 # OpenAI API 클라이언트 설정
 def get_openai_client():
-    return OpenAI(api_key=st.secrets['openai']["OPENAI_API_KEY"])
+    return ChatOpenAI(model= DEFAULT_MODEL, temperature=0.7, api_key=st.secrets['openai']["OPENAI_API_KEY"])
 
 
-# openai 기본 모델 설정
-DEFAULT_MODEL = "gpt-3.5-turbo"
+# 면접 질문 생성 프롬프트
+QUESTION_PROMPT = PromptTemplate(
+    template="""주어진 문서를 기반으로 파이썬 면접 질문을 하나만 생성해 주세요. 
+    문서 내용: {context}
+    면접 질문:""",
+    input_variables=["context"]
+)
 
+# 면접 챗봇 평가 프롬프트
+EVALUATION_PROMPT = PromptTemplate(
+    template="""
+    너는 파이썬 면접관 챗봇이야. 
+    지원자가 답변을 입력하면 아래의 문서를 참조해서 평가 및 모범답안을 제시해줘
+    
+    참고 문서:  
+    {context}
+    
+    질문: {question}
+    답변: {answer}
+    평가:
+    """,
+    input_variables=["question", "answer", "context"]
+)
 
-SYSTEM_MESSAGE = '''
-    너는 IT 기업 면접관임.
-    개발자 채용 시 기술 면접을 진행하는 중임. 
-    한 번에 하나의 질문을 제시하고, 해당 질문에 답변이 들어오면 
-    답변에 대해 피드백을 제공한 후 다음 질문을 시작해.
-    '''
+# RAG 설정
+VECTOR_STORE_PATH = "my_vector_store"
+
+# Embedding 설정
+embeddings = OpenAIEmbeddings()
+vector_store = Chroma(persist_directory=VECTOR_STORE_PATH, embedding_function=embeddings)
+retriever = vector_store.as_retriever()
+
 
 # 챗봇 UI 아바타
 BOT_AVATAR = 'https://github.com/user-attachments/assets/caedea67-2ccf-459d-b5d8-7a6ffcd8fc24'
