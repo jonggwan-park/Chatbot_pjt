@@ -10,6 +10,8 @@ DB_CONFIG = {
     "port": st.secrets['postgres']['POSTGRES_PORT']
 }
 
+def get_openai_key():
+    return st.secrets['openai']["OPENAI_API_KEY"]
 
 # OpenAI API 클라이언트 설정
 def get_openai_client():
