@@ -7,7 +7,10 @@ from backend.db import (
     create_chat_session,
     insert_chat_message,
     get_chat_history,
-    get_user_chat_sessions
+    get_user_chat_sessions,
+    delete_chat_messages,    # 추가
+    delete_chat_session,     # 추가
+    delete_all_user_sessions # 추가
 )
 
 # `.env` 파일 로드 (Streamlit secrets.toml 대신 직접 환경 변수 사용)
@@ -36,7 +39,7 @@ def db_connection():
     yield conn
     conn.close()
 
-# 테스트 데이터 정리 및 설정
+# 테스트 데이터 정리 및 설정 (복원된 코드)
 @pytest.fixture(autouse=True)
 def setup_and_teardown(db_connection):
     """테스트 실행 전 데이터 정리 및 설정"""
@@ -108,3 +111,52 @@ def test_get_user_chat_sessions():
     assert isinstance(sessions, list)  # 반환 값이 리스트인지 확인
     assert len(sessions) > 0  # 세션이 하나 이상 존재해야 함
     assert "id" in sessions[0] and "created_at" in sessions[0]  # 세션 데이터 구조 확인
+
+# 특정 세션의 채팅 메시지 삭제 테스트
+def test_delete_chat_messages():
+    """특정 채팅 세션의 모든 메시지를 삭제할 수 있는지 테스트"""
+    session_id = create_chat_session(TEST_USER_ID)
+    insert_chat_message(session_id, "user", "Test message")
+    insert_chat_message(session_id, "bot", "Test response")
+
+    # 삭제 실행
+    delete_chat_messages(session_id)
+
+    # 데이터가 삭제되었는지 확인
+    chat_history = get_chat_history(session_id)
+    assert len(chat_history) == 0  # 모든 메시지가 삭제되었어야 함
+
+# 특정 채팅 세션 및 모든 메시지 삭제 테스트
+def test_delete_chat_session():
+    """특정 채팅 세션과 모든 메시지를 삭제할 수 있는지 테스트"""
+    session_id = create_chat_session(TEST_USER_ID)
+    insert_chat_message(session_id, "user", "Test message")
+    insert_chat_message(session_id, "bot", "Test response")
+
+    # 세션 삭제 실행
+    delete_chat_session(session_id)
+
+    # 메시지와 세션이 삭제되었는지 확인
+    chat_history = get_chat_history(session_id)
+    assert len(chat_history) == 0  # 메시지가 삭제되었어야 함
+
+    # 사용자의 세션 조회
+    sessions = get_user_chat_sessions(TEST_USER_ID)
+    assert session_id not in [s["id"] for s in sessions]  # 세션 ID가 목록에 없어야 함
+
+# 특정 사용자의 모든 채팅 데이터 삭제 테스트
+def test_delete_all_user_sessions():
+    """특정 사용자의 모든 채팅 세션과 관련 메시지를 삭제할 수 있는지 테스트"""
+    session1 = create_chat_session(TEST_USER_ID)
+    session2 = create_chat_session(TEST_USER_ID)
+    
+    insert_chat_message(session1, "user", "Session 1 - Message")
+    insert_chat_message(session2, "user", "Session 2 - Message")
+
+    delete_all_user_sessions(TEST_USER_ID)
+
+    sessions = get_user_chat_sessions(TEST_USER_ID)
+    assert len(sessions) == 0  # 사용자의 모든 세션이 삭제되었어야 함
+
+    assert len(get_chat_history(session1)) == 0
+    assert len(get_chat_history(session2)) == 0
