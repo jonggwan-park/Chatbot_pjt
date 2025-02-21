@@ -11,3 +11,16 @@
 로깅(Logging) 함수
 - 에러 발생 시 원인을 쉽게 추적할 수 있도록 로그를 남길 때 유용
 '''
+
+import streamlit as st
+from backend.accounts import logout
+
+def show_sidebar():
+    """로그인 상태일 때 모든 페이지에 로그아웃 버튼 표시"""
+    if st.session_state.get("authenticated", False):
+        with st.sidebar:
+            st.write(f"✅ 로그인 상태: {st.session_state['user']}님")
+            if st.button("로그아웃"):
+                logout()
+                st.success('로그아웃 되었습니다.')
+                st.rerun()
