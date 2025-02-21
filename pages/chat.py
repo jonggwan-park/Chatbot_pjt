@@ -7,10 +7,26 @@ from backend.langchain_chatbot import (
     initialize_evaluation_workflow,
     generate_question
 )
+from backend.db import create_chat_session
+from backend.utils import show_sidebar
+
 
 # Streamlit UI 실행 함수
 st.set_page_config(page_title="AI 면접 도우미 챗봇")
 st.title("AI 면접 도우미 챗봇")
+show_sidebar()
+
+
+# 로그인 확인
+if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+    st.warning("🚨 채팅을 사용하려면 먼저 로그인하세요.")
+    st.stop()  # 로그인 안 했으면 실행 중지
+
+
+user_id = st.session_state["username"]  # 로그인한 사용자 ID
+session_id = create_chat_session(user_id)  # 새로운 세션 생성
+
+
 
 # 세션 상태 초기화
 initialize_session()
