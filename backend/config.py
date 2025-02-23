@@ -50,7 +50,7 @@ EVALUATION_PROMPT = PromptTemplate(
 VECTOR_STORE_PATH = "my_vector_store"
 
 # Embedding 설정
-embeddings = OpenAIEmbeddings()
+embeddings = OpenAIEmbeddings(api_key=st.secrets['openai']["OPENAI_API_KEY"])
 vector_store = Chroma(persist_directory=VECTOR_STORE_PATH, embedding_function=embeddings)
 retriever = vector_store.as_retriever()
 
