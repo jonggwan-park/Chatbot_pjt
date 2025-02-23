@@ -1,6 +1,7 @@
 import streamlit as st
 from backend.db import get_user_chat_sessions, get_chat_history, get_user_id
 from backend.accounts import is_authenticated
+from backend.utils import show_sidebar
 
 # 채팅 히스토리 조회 페이지
 def display_chat_history():
@@ -49,4 +50,5 @@ def display_chat_history():
 # Streamlit 실행 시 메인 함수 호출
 if __name__ == "__main__":
     st.title("📜 채팅 히스토리")
+    show_sidebar()
     display_chat_history()
