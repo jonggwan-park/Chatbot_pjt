@@ -8,6 +8,7 @@ from backend.config import (get_openai_client,
                             EVALUATION_PROMPT,
                             retriever, 
                             BOT_AVATAR, USER_AVATAR)
+from backend.db import insert_chat_message
 
 
 
@@ -86,13 +87,26 @@ def generate_question():
 
     # 세션 상태 업데이트
     st.session_state.generated_question = generated_question
-    st.session_state.messages.append({"role": "assistant", "content": generated_question})
+    session_id = st.session_state.get("session_id")
+
+    insert_chat_message(session_id, "bot", generated_question)
+    st.session_state.messages.append({"role": "bot", "content": generated_question})
+    message(generated_question, is_user=False, key=f"bot_{len(st.session_state.messages)}", logo=BOT_AVATAR)
+
 
 def handle_user_input():
     """ 사용자 입력을 처리하는 함수 """
     if prompt := st.chat_input("답변을 입력하세요..."):
+        session_id = st.session_state.get("session_id")
 
-        # 사용자 입력 저장 및 출력
+        if not session_id:
+            st.error("채팅 세션이 존재하지 않습니다. 다시 로그인해주세요.")
+            return
+
+        # 사용자 응답을 DB에 저장
+        insert_chat_message(session_id, "user", prompt)
+
+        # 사용자 입력 UI 표시
         st.session_state.messages.append({"role": "user", "content": prompt})
         message(prompt, is_user=True, key=f"user_{len(st.session_state.messages)}", logo=USER_AVATAR)
 
@@ -110,10 +124,14 @@ def handle_user_input():
         for event in st.session_state.app.stream({"messages": [input_message]}, config, stream_mode="values"):
             response = event["messages"][-1].content
 
-            # ✅ 중복 방지: 동일한 응답이 있는지 확인
+            # 중복 방지: 동일한 응답이 있는지 확인
             if not any(msg["content"] == response for msg in st.session_state.messages):
+                # 챗봇의 응답을 DB에 저장
+                insert_chat_message(session_id, "bot", response)
+
+                # 챗봇 응답 UI 표시
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 message(response, is_user=False, key=f"assistant_{len(st.session_state.messages)}", logo=BOT_AVATAR)
 
-        # ✅ 면접 지속 여부 선택 버튼 추가
+        # 면접 지속 여부 선택 버튼 추가
         st.session_state.show_continue_button = True
