@@ -18,11 +18,13 @@ if not st.session_state["authenticated"]:
 
     with tab1:
         input_username = st.text_input("아이디", key="input_username")  # 키 충돌 방지
-        input_password = st.text_input("비밀번호", type="password", key="input_password")
+        input_password = st.text_input(
+            "비밀번호", type="password", key="input_password"
+        )
 
         if st.button("로그인"):
             if authenticate(input_username, input_password):
-                st.session_state["authenticated"] = True  # 로그인 상태 유지 
+                st.session_state["authenticated"] = True  # 로그인 상태 유지
                 st.session_state["username"] = input
                 login_user(input_username)  # 세션 상태 업데이트
                 st.success(f"🎉 환영합니다, {input_username}님!")
