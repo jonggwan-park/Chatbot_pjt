@@ -58,8 +58,8 @@ EVALUATION_PROMPT = PromptTemplate(
 VECTOR_STORE_PATH = "my_vector_store"
 
 # Embedding 설정
-embeddings = OpenAIEmbeddings(api_key=get_openai_key())
 
+embeddings = OpenAIEmbeddings(api_key=get_openai_key())
 
 PINECONE_API_KEY = PINECONE_CONFIG["api_key"]
 PINECONE_ENV = PINECONE_CONFIG["environment"]
@@ -89,8 +89,7 @@ print(type(vectorstore))  # <class 'langchain_pinecone.vectorstores.Pinecone'>
 # retriever로 변환
 retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 
-
-QUERY="파이썬 관련 질문"
+QUERY="파이썬 면접 질문 하나 생성해"
 
 # 챗봇 UI 아바타
 BOT_AVATAR = 'https://github.com/user-attachments/assets/caedea67-2ccf-459d-b5d8-7a6ffcd8fc24'
