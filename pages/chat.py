@@ -5,12 +5,9 @@ from backend.langchain_chatbot import (
     handle_user_input,
     feedback_documents,
     initialize_evaluation_workflow,
-    generate_question
+    generate_question,
 )
-from backend.db import (
-    create_chat_session, 
-    get_user_id
-)
+from backend.db import create_chat_session, get_user_id
 from backend.utils import show_sidebar
 
 # Streamlit UI 실행 함수
@@ -67,11 +64,11 @@ if st.session_state.get("show_continue_button", False):
             st.write("면접을 종료합니다.")
 
             # 기존 대화 기록 삭제
-            st.session_state.chat_history = []  
-            st.session_state.messages = []  
+            st.session_state.chat_history = []
+            st.session_state.messages = []
             st.session_state.first_question_asked = False  # 첫 질문 여부도 리셋
-            st.session_state.show_continue_button = False  
-            st.session_state.interview_started = False  
+            st.session_state.show_continue_button = False
+            st.session_state.interview_started = False
 
             # 페이지 새로고침하여 완전 리셋
             st.rerun()
