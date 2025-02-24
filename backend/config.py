@@ -83,7 +83,7 @@ pc = pinecone.Pinecone(api_key=PINECONE_API_KEY)
 index = pc.Index(index_name)
 
 # Vector Store 생성 (LangChain용)
-vectorstore = PineconeVectorStore(index, embeddings,text_key="text")
+vectorstore = PineconeVectorStore(index, embeddings,namespace="example-namespace")
 print(type(vectorstore))  # <class 'langchain_pinecone.vectorstores.Pinecone'>
 
 # retriever로 변환
