@@ -1,4 +1,3 @@
-import os
 from pinecone.grpc import PineconeGRPC as Pinecone
 from pinecone import ServerlessSpec
 from dotenv import load_dotenv
@@ -7,8 +6,17 @@ from dotenv import load_dotenv
 load_dotenv()
 # PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 
+
 class PineconeWrapper:
-    def __init__(self, api_key, index_name, environment, dimension=384, metric="cosine", namespace="example-namespace"):
+    def __init__(
+        self,
+        api_key,
+        index_name,
+        environment,
+        dimension=384,
+        metric="cosine",
+        namespace="example-namespace",
+    ):
         """
         초기화 및 인덱스 생성
         :param api_key: Pinecone API 키
@@ -37,11 +45,13 @@ class PineconeWrapper:
                     name=self.index_name,
                     dimension=self.dimension,
                     metric=self.metric,
-                    spec=ServerlessSpec(cloud="aws", region="us-east-1")
+                    spec=ServerlessSpec(cloud="aws", region="us-east-1"),
                 )
             except Exception as e:
                 if "ALREADY_EXISTS" in str(e):
-                    print(f"인덱스 '{self.index_name}'가 이미 존재합니다. 계속 진행합니다.")
+                    print(
+                        f"인덱스 '{self.index_name}'가 이미 존재합니다. 계속 진행합니다."
+                    )
                 else:
                     raise e
         else:
@@ -57,19 +67,21 @@ class PineconeWrapper:
         :param model: 사용 할 임베딩 모델 이름
         """
         # 임베딩 수행: data의 "text" 항목들을 embed
-        texts = [item['text'] for item in data]
+        texts = [item["text"] for item in data]
         embeddings = self.pc.inference.embed(
             model=model,
             inputs=texts,
-            parameters={"input_type": "passage", "truncate": "END"}
+            parameters={"input_type": "passage", "truncate": "END"},
         )
         records = []
         for item, emb in zip(data, embeddings):
-            records.append({
-                "id": item['id'],
-                "values": emb['values'],
-                "metadata": {'text': item['text']}
-            })
+            records.append(
+                {
+                    "id": item["id"],
+                    "values": emb["values"],
+                    "metadata": {"text": item["text"]},
+                }
+            )
         # 업서트 수행 (namespace 사용)
         self.index.upsert(vectors=records, namespace=self.namespace)
         print("✅ 데이터 업서트 완료.")
@@ -83,16 +95,14 @@ class PineconeWrapper:
         :return: 검색 결과 (dict)
         """
         query_embedding = self.pc.inference.embed(
-            model=model,
-            inputs=[query_text],
-            parameters={"input_type": "query"}
+            model=model, inputs=[query_text], parameters={"input_type": "query"}
         )
         results = self.index.query(
             namespace=self.namespace,
             vector=query_embedding[0].values,
             top_k=top_k,
             include_values=False,
-            include_metadata=True
+            include_metadata=True,
         )
         return results
 
@@ -117,7 +127,7 @@ class PineconeWrapper:
 #     index_name=index_name,
 #     environment=PINECONE_ENV,
 #     dimension=384,  # 사용하려는 임베딩 모델의 차원 (예: all-MiniLM-L6-v2 → 384)
-#     metric="cosine", 
+#     metric="cosine",
 #     namespace="example-namespace" # 인덱스 내 저장소 이름
 # )
 
