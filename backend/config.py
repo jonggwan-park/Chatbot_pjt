@@ -25,7 +25,7 @@ DEFAULT_MODEL = "gpt-4o-mini"
 
 # OpenAI API 클라이언트 설정
 def get_openai_client():
-    return ChatOpenAI(model= DEFAULT_MODEL, temperature=1.5, api_key=st.secrets['openai']["OPENAI_API_KEY"])
+    return ChatOpenAI(model= DEFAULT_MODEL, temperature=0.9, api_key=st.secrets['openai']["OPENAI_API_KEY"],max_completion_tokens=1500)
 
 def get_openai_key():
     return st.secrets['openai']["OPENAI_API_KEY"]
@@ -63,7 +63,7 @@ embeddings = OpenAIEmbeddings(api_key=get_openai_key())
 
 PINECONE_API_KEY = PINECONE_CONFIG["api_key"]
 PINECONE_ENV = PINECONE_CONFIG["environment"]
-index_name = PINECONE_CONFIG["index_name"]
+INDEX_NAME = PINECONE_CONFIG["index_name"]
 
 pc = pinecone.Pinecone(api_key=PINECONE_API_KEY)
 
@@ -80,7 +80,10 @@ pc = pinecone.Pinecone(api_key=PINECONE_API_KEY)
 #     )
 
 # index 객체 생성
-index = pc.Index(index_name)
+if INDEX_NAME not in pc.list_indexes().names():
+    raise ValueError(f"Pinecone 인덱스 '{INDEX_NAME}'가 존재하지 않습니다. 먼저 생성해 주세요.")
+
+index = pc.Index(INDEX_NAME)
 
 # Vector Store 생성 (LangChain용)
 vectorstore = PineconeVectorStore(index, embeddings,namespace="example-namespace")
