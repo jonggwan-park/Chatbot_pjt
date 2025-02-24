@@ -2,12 +2,13 @@ import uuid
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
 import streamlit as st
-from st_chat_message import message
+from streamlit_chat import message
 from backend.config import (get_openai_client,
                             QUESTION_PROMPT,
                             EVALUATION_PROMPT,
                             retriever, 
-                            BOT_AVATAR, USER_AVATAR)
+                            BOT_AVATAR, USER_AVATAR,
+                            QUERY)
 
 
 
@@ -18,24 +19,26 @@ def initialize_session():
 
     if "generated_question" not in st.session_state:
         # RAG를 이용하여 질문 생성을 위한 관련 문서 검색
-        retrieved_docs = retriever.invoke("파이썬 면접 질문 하나 생성해")  # 임시 검색 쿼리
+        retrieved_docs = retriever.get_relevant_documents(QUERY)  # 임시 검색 쿼리
         context = "\n".join([doc.page_content for doc in retrieved_docs])  # 검색된 문서에서 내용 가져오기
         
         # 세션 상태에서 context 유지
         st.session_state['context'] = context
-        
+        llm = get_openai_client()
         # 질문용 모델 체인 정의
-        question_chain = QUESTION_PROMPT | get_openai_client()
+        question_chain = QUESTION_PROMPT | llm
+        # ai_message.content 형태로 사용
+        ai_message = question_chain.invoke({"context":context})
         
         # RAG와 함께 질문 생성
-        st.session_state.generated_question = question_chain.invoke({'context': context}).content
+        generated_question = ai_message.content
 
-
+        st.session_state.generated_question = generated_question
 
 # RAG를 이용하여 피드백을 위해 검색된 문서 가져오기
 def feedback_documents():
     if "generated_question" in st.session_state:
-        retrieved_docs = retriever.invoke(st.session_state.generated_question)
+        retrieved_docs = retriever.get_relevant_documents(st.session_state.generated_question)
         st.session_state.feedback_context = "\n".join([doc.page_content for doc in retrieved_docs])
 
 
@@ -79,10 +82,9 @@ def generate_question():
     """ 사용자의 답변 후 새로운 질문을 생성하는 함수 """
     question_chain = QUESTION_PROMPT | get_openai_client()
 
-    # 새로운 질문 생성
-    generated_question = question_chain.invoke(
-        {"context": st.session_state.get("context", "")}
-    ).content
+    # ✅ 'AIMessage' 객체 반환 → 'str'로 변환
+    ai_message = question_chain.invoke({"context": st.session_state.get("context", "")})
+    generated_question = ai_message.content
 
     # 세션 상태 업데이트
     st.session_state.generated_question = generated_question

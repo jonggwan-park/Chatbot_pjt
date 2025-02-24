@@ -1,9 +1,10 @@
 import streamlit as st
 from openai import OpenAI
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_chroma import Chroma
 from langchain_core.prompts import PromptTemplate
-
+# from pinecone import Pinecone, ServerlessSpec
+import pinecone
+from langchain_pinecone import PineconeVectorStore
 # Neon PostgreSQL 연결 정보
 DB_CONFIG = {
     "host": st.secrets['postgres']['POSTGRES_HOST'],
@@ -13,14 +14,21 @@ DB_CONFIG = {
     "port": st.secrets['postgres']['POSTGRES_PORT']
 }
 
+PINECONE_CONFIG = {
+    "api_key": st.secrets['pinecone']['PINECONE_API_KEY'],
+    "environment": st.secrets['pinecone']['PINECONE_ENV'],
+    "index_name": st.secrets['pinecone']['PINECONE_INDEX_NAME']
+}
 
 # openai 기본 모델 설정
 DEFAULT_MODEL = "gpt-4o-mini"
 
 # OpenAI API 클라이언트 설정
 def get_openai_client():
-    return ChatOpenAI(model= DEFAULT_MODEL, temperature=0.7, api_key=st.secrets['openai']["OPENAI_API_KEY"])
+    return ChatOpenAI(model= DEFAULT_MODEL, temperature=1.5, api_key=st.secrets['openai']["OPENAI_API_KEY"])
 
+def get_openai_key():
+    return st.secrets['openai']["OPENAI_API_KEY"]
 
 # 면접 질문 생성 프롬프트
 QUESTION_PROMPT = PromptTemplate(
@@ -50,11 +58,50 @@ EVALUATION_PROMPT = PromptTemplate(
 VECTOR_STORE_PATH = "my_vector_store"
 
 # Embedding 설정
-embeddings = OpenAIEmbeddings()
-vector_store = Chroma(persist_directory=VECTOR_STORE_PATH, embedding_function=embeddings)
-retriever = vector_store.as_retriever()
+embeddings = OpenAIEmbeddings(api_key=get_openai_key())
 
+
+PINECONE_API_KEY = PINECONE_CONFIG["api_key"]
+PINECONE_ENV = PINECONE_CONFIG["environment"]
+index_name = PINECONE_CONFIG["index_name"]
+
+pc = pinecone.Pinecone(api_key=PINECONE_API_KEY)
+
+# # Now do stuff
+# if index_name not in pc.list_indexes().names():
+#     pc.create_index(
+#         name=index_name,
+#         dimension=1536,
+#         metric='cosine',
+#         spec=ServerlessSpec(
+#             cloud='aws',
+#             region='us-east-1'
+#         )
+#     )
+
+# index 객체 생성
+index = pc.Index(index_name)
+
+# Vector Store 생성 (LangChain용)
+vectorstore = PineconeVectorStore(index, embeddings,text_key="text")
+print(type(vectorstore))  # <class 'langchain_pinecone.vectorstores.Pinecone'>
+
+# retriever로 변환
+retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 3})
+
+
+QUERY="파이썬 관련 질문"
 
 # 챗봇 UI 아바타
 BOT_AVATAR = 'https://github.com/user-attachments/assets/caedea67-2ccf-459d-b5d8-7a6ffcd8fc24'
 USER_AVATAR = 'https://github.com/user-attachments/assets/f77abd1d-5c80-49c2-8225-13e136a6446b'
+
+# # RAG 설정
+# VECTOR_STORE_PATH = "my_vector_store"
+
+# # Embedding 설정
+# embeddings = OpenAIEmbeddings()
+# vector_store = Chroma(persist_directory=VECTOR_STORE_PATH, embedding_function=embeddings)
+# retriever = vector_store.as_retriever()
+
+
