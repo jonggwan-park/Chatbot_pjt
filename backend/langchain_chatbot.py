@@ -19,7 +19,7 @@ def initialize_session():
 
     if "generated_question" not in st.session_state:
         # RAG를 이용하여 질문 생성을 위한 관련 문서 검색
-        retrieved_docs = retriever.get_relevant_documents(QUERY)  # 임시 검색 쿼리
+        retrieved_docs = retriever.invoke(QUERY)  # 임시 검색 쿼리
         context = "\n".join([doc.page_content for doc in retrieved_docs])  # 검색된 문서에서 내용 가져오기
         
         # 세션 상태에서 context 유지
