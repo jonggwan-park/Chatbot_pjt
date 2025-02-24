@@ -1,5 +1,4 @@
 import streamlit as st
-from openai import OpenAI
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.prompts import PromptTemplate
 # from pinecone import Pinecone, ServerlessSpec
