@@ -187,3 +187,20 @@ def delete_all_user_sessions(user_id):
             print(f"Error deleting all user chat sessions: {e}")
         finally:
             release_connection(conn)
+
+def get_user_id(username):
+    """사용자의 user_id를 조회"""
+    conn = get_connection()
+    user_id = None
+    if conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id FROM users WHERE username = %s;", (username,))
+                result = cur.fetchone()
+                if result:
+                    user_id = result[0]  # ID 값 반환
+        except Exception as e:
+            print(f"Error fetching user ID: {e}")
+        finally:
+            release_connection(conn)
+    return user_id
