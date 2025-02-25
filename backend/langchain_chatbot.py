@@ -108,6 +108,9 @@ def generate_question():
     """사용자의 답변 후 새로운 질문을 생성하는 함수"""
     question_chain = QUESTION_PROMPT | get_openai_client()
 
+    # ✅ 'AIMessage' 객체 반환 → 'str'로 변환
+ 
+
     max_retries = 5  # 새로운 질문을 찾기 위한 최대 시도 횟수
     new_question = None
     new_context = None
@@ -136,13 +139,22 @@ def generate_question():
     st.session_state.generated_question = new_question
     st.session_state.context = new_context  # 새로운 문맥 업데이트
     st.session_state.messages.append({"role": "assistant", "content": new_question})
+    session_id = st.session_state.get("session_id")
+
+    insert_chat_message(session_id, "bot", new_question)
+
+    message(new_question, is_user=False, key=f"bot_{len(st.session_state.messages)}", logo=BOT_AVATAR)
 
 
 def handle_user_input():
     """사용자 입력을 처리하는 함수"""
     if prompt := st.chat_input("답변을 입력하세요..."):
-
+        session_id = st.session_state.get("session_id")
+        
         # 사용자 입력 저장 및 출력
+        insert_chat_message(session_id, "user", prompt)
+
+        # 사용자 입력 UI 표시
         st.session_state.messages.append({"role": "user", "content": prompt})
         message(
             prompt,
@@ -170,6 +182,7 @@ def handle_user_input():
             # ✅ 중복 방지: 동일한 응답이 있는지 확인
             if not any(msg["content"] == response for msg in st.session_state.messages):
 
+                insert_chat_message(session_id, "bot", response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 message(response, is_user=False, key=f"assistant_{len(st.session_state.messages)}", logo=BOT_AVATAR)
 
