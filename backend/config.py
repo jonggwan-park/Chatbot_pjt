@@ -89,7 +89,7 @@ vectorstore = PineconeVectorStore(index, embeddings,namespace="example-namespace
 print(type(vectorstore))  # <class 'langchain_pinecone.vectorstores.Pinecone'>
 
 # retriever로 변환
-retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 3})
+retriever = vectorstore.as_retriever(search_type = "mmr",search_kwargs={"k": 5, "fetch_k": 20, "lambda_mult": 0.7})
 
 QUERY="파이썬 면접 질문 하나 생성해"
 
