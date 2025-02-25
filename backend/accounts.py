@@ -7,12 +7,14 @@ from backend.db import get_connection, release_connection  # Connection Pool 활
 # 비밀번호 해싱
 def hash_password(password):
     salt = bcrypt.gensalt()
-    return bcrypt.hashpw(password.encode(), salt).decode()
+    return bcrypt.hashpw(password.encode(), salt)
 
 
 # 비밀번호 검증
 def verify_password(plain_password, hashed_password):
-    return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+    if isinstance(hashed_password, memoryview) :
+        hashed_password = bytes(hashed_password)
+    return bcrypt.checkpw(plain_password.encode(), hashed_password)
 
 
 # 사용자 등록
@@ -49,7 +51,12 @@ def authenticate(username, password):
                 user_data = cur.fetchone()
 
             if user_data:
-                return verify_password(password, user_data[0])  # 비밀번호 검증
+                hashed_password = user_data[0]  # 비밀번호 검증
+            
+                if isinstance(hashed_password, memoryview) :
+                    hashed_password = bytes(hashed_password)
+
+                return verify_password(password, hashed_password)
             return False
         except Exception as e:
             print(f"Error during authentication: {e}")
