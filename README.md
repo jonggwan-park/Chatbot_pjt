@@ -17,13 +17,19 @@ LangChain과 Pinecone을 활용한 **RAG(Retrieval-Augmented Generation)** 모�
 ---
 
 ## 2. 배포
-👉 **[배포 URL](https://your-streamlit-app-link.streamlit.app/)**
+👉 **[배포 URL](https://chatbotpjt-udbkrmgy8v64nxax3baeae.streamlit.app/)**
 
 ---
 
 ## 3. 팀원 구성
 
-### 역할 분담
+- 팀장 : 신제창
+- 팀원 : 이현지, 박종관, 박민지
+
+### - 역할 분담
+- Chatbot 모델 - 신제창
+- 웹-Streamlit - 이현지
+- RDB, 벡터DB - 박민지, 박종관
 
 ---
 
