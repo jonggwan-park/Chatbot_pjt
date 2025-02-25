@@ -37,10 +37,13 @@ if not st.session_state["authenticated"]:
         new_password = st.text_input("새 비밀번호", type="password", key="new_password")
 
         if st.button("회원가입"):
-            if register_user(new_username, new_password):
-                st.success("✅ 회원가입 성공! 로그인해주세요.")
-            else:
-                st.error("❌ 이미 존재하는 아이디입니다.")
+            if not new_username or not new_password:
+                st.error("🚨 사용자명과 비밀번호를 입력해주세요!")
+            else : 
+                if register_user(new_username, new_password):
+                    st.success("✅ 회원가입 성공! 로그인해주세요.")
+                else:
+                    st.error("❌ 이미 존재하는 아이디입니다.")
 
 else:
     st.write(f"✅ 로그인 상태: {st.session_state['user']}님, 반갑습니다!")
