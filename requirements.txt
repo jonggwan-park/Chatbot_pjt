@@ -1,4 +1,4 @@
-aiohttp==3.11.12
+
 altair==5.5.0
 anthropic==0.45.2
 chromadb==0.6.3
@@ -9,6 +9,9 @@ huggingface-hub==0.28.1
 jupyter_client==8.6.3
 jupyter_core==5.7.2
 langchain==0.3.19
+langchain-openai==0.3.6
+langchain-pinecone==0.2.3
+langgraph==0.2.74
 numpy==1.26.4
 openai==1.63.2
 pandas==2.2.3
@@ -22,6 +25,7 @@ scikit-learn==1.6.1
 sentence-transformers==3.4.1
 sqlalchemy==2.0.38
 streamlit==1.42.1
+streamlit-chat==0.1.1
 torch==2.6.0
 transformers==4.49.0
 uvicorn==0.18.3
